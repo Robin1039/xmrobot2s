@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác Minh Người Dùng</title>
+    <style>
+        body {
+            background: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        .captcha-container {
+            width: 90%;
+            max-width: 380px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @media (max-width: 480px) {
+            .captcha-container {
+                width: 100%;
+                max-width: none;
+                border-radius: 0;
+                padding: 15px;
+                box-shadow: none;
+            }
+        }
+
+        .captcha-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .captcha-description {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .question-box {
+            margin-bottom: 20px;
+        }
+
+        .question-text {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        #userAnswer {
+            padding: 8px;
+            width: 80%;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .progress-circle {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: auto;
+        }
+
+        .progress-circle svg {
+            transform: rotate(-90deg);
+        }
+
+        .progress-bar {
+            stroke-dasharray: 314;
+            stroke-dashoffset: 314;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 2s linear;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff7f00;
+        }
+
+        #verifyBtn {
+            background-color: #ff7f00;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+            font-weight: bold;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        #verifyBtn.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #verifyBtn:active {
+            background-color: #ff5700;
+        }
+
+        #status {
+            margin-top: 12px;
+            font-size: 16px;
+            color: #28a745;
+            display: none;
+        }
+
+        .error-message {
+            color: #ff0000;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="captcha-container">
+        <p class="captcha-title">Xác Minh Người Dùng</p>
+        <p class="captcha-description">Trả lời câu hỏi và nhấn giữ nút trong 2 giây để xác minh.</p>
+        
+        <div class="question-box">
+            <p class="question-text" id="question"></p>
+            <input type="text" id="userAnswer" placeholder="Nhập câu trả lời">
+            <p class="error-message" id="errorMessage">Câu trả lời không đúng!</p>
+        </div>
+
+        <div class="progress-circle">
+            <svg width="120" height="120">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#ddd" stroke-width="8"></circle>
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#ff7f00" stroke-width="8" class="progress-bar"></circle>
+            </svg>
+            <div class="progress-text">0%</div>
+        </div>
+
+        <button id="verifyBtn">Giữ để xác minh</button>
+        <p id="status">✅ Xác minh thành công! Đang chuyển hướng...</p>
+    </div>
+
+    <script>
+        const questions = [
+            { q: "Màu của bầu trời là gì?", a: "xanh" },
+            { q: "1 + 1 bằng bao nhiêu?", a: "2" },
+            { q: "Con mèo có mấy chân?", a: "4" },
+            { q: "Ban ngày có mặt trời hay mặt trăng?", a: "mặt trời" },
+            { q: "Mưa rơi từ đâu xuống?", a: "trời" }
+        ];
+
+        let currentQuestion = {};
+        let holdDuration = 2000;
+        let verifyBtn = document.getElementById("verifyBtn");
+        let progressBar = document.querySelector(".progress-bar");
+        let progressText = document.querySelector(".progress-text");
+        let statusText = document.getElementById("status");
+        let userAnswer = document.getElementById("userAnswer");
+        let questionText = document.getElementById("question");
+        let errorMessage = document.getElementById("errorMessage");
+        let isVerifying = false;
+        let redirectURL = "https://www.example.com"; // Thay bằng link đích của bạn
+
+        function loadRandomQuestion() {
+            currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+            questionText.innerText = currentQuestion.q;
+        }
+
+        function checkAnswer() {
+            let answer = userAnswer.value.trim().toLowerCase();
+            if (answer === currentQuestion.a) {
+                verifyBtn.classList.add("active");
+                errorMessage.style.display = "none";
+            } else {
+                verifyBtn.classList.remove("active");
+                errorMessage.style.display = "block";
+            }
+        }
+
+        function startProgress() {
+            if (isVerifying || !verifyBtn.classList.contains("active")) return;
+            progressBar.style.strokeDashoffset = "0";
+            progressText.innerText = "100%";
+            setTimeout(() => {
+                completeVerification();
+            }, holdDuration);
+        }
+
+        function completeVerification() {
+            isVerifying = true;
+            verifyBtn.style.display = "none";
+            statusText.style.display = "block";
+            sendTrackingData();
+            setTimeout(() => {
+                window.location.href = redirectURL;
+            }, 1500);
+        }
+
+        function resetProgress() {
+            if (isVerifying) return;
+            progressBar.style.strokeDashoffset = "314";
+            progressText.innerText = "0%";
+        }
+
+        function sendTrackingData() {
+            console.log("Sending TikTok tracking...");
+            fetch('https://yourserver.com/tiktok-events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    event: 'CompleteVerification',
+                    pixel_id: 'CUSS2UBC77UA8JMIUAA0',
+                    user_agent: navigator.userAgent,
+                    answer: userAnswer.value
+                })
+            }).then(() => console.log("Tracking sent"))
+              .catch(error => console.error("Tracking error:", error));
+        }
+
+        loadRandomQuestion();
+        userAnswer.addEventListener("input", checkAnswer);
+        verifyBtn.addEventListener("mousedown", startProgress);
+        verifyBtn.addEventListener("mouseup", resetProgress);
+        verifyBtn.addEventListener("mouseleave", resetProgress);
+        verifyBtn.addEventListener("touchstart", startProgress);
+        verifyBtn.addEventListener("touchend", resetProgress);
+    </script>
+</body>
+</html>
